@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build Outputs & Compilations
+dist/
+build/
+out/
+*.tsbuildinfo
+.next/
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+
+# Editor & OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# IDEs & Tooling
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+.oxlint/
+
+# Testing & Coverage
+coverage/
+.nyc_output/
+
+# Temporary & Cache
+.temp/
+.tmp/
+.cache/
+.vite/
+.parcel-cache/
