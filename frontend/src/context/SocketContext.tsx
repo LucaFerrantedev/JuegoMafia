@@ -37,6 +37,9 @@ interface SocketContextValue {
   joinRoom: (roomCode: string, nickname: string, avatarSeed?: string) => void;
   toggleReady: () => void;
   startGame: () => void;
+  fillWithBots: () => void;
+  addBot: () => void;
+  removeBot: () => void;
   sendChatMessage: (channel: 'PUBLIC' | 'MAFIA' | 'SPECTATOR', text: string) => void;
   sendDirectMessage: (targetPlayerId: string, text: string) => void;
   nominateSuspect: (suspectPlayerId: string) => void;
@@ -143,6 +146,18 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     socket?.emit('lobby:start_game');
   }, [socket]);
 
+  const fillWithBots = useCallback(() => {
+    socket?.emit('lobby:fill_bots');
+  }, [socket]);
+
+  const addBot = useCallback(() => {
+    socket?.emit('lobby:add_bot');
+  }, [socket]);
+
+  const removeBot = useCallback(() => {
+    socket?.emit('lobby:remove_bot');
+  }, [socket]);
+
   const sendChatMessage = useCallback((channel: 'PUBLIC' | 'MAFIA' | 'SPECTATOR', text: string) => {
     socket?.emit('chat:send_message', { channel, text });
   }, [socket]);
@@ -179,6 +194,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         joinRoom,
         toggleReady,
         startGame,
+        fillWithBots,
+        addBot,
+        removeBot,
         sendChatMessage,
         sendDirectMessage,
         nominateSuspect,

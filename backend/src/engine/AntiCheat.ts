@@ -38,6 +38,8 @@ export function sanitizeGameState(state: GameState, forPlayerId: string): Client
       isSilenced: p.isSilenced,
       hasNominated: p.hasNominated,
       hasVotedVerdict: !!p.verdictVote,
+      isBot: p.isBot,
+      personality: p.isBot ? p.personality : undefined,
       revealedRole: shouldRevealRole ? p.role : undefined,
       revealedFaction: shouldRevealRole ? p.faction : undefined
     };

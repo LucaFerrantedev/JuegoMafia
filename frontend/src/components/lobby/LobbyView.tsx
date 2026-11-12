@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useSocket } from '../../context/SocketContext';
-import { Users, Copy, Check, Play, ShieldAlert, Cpu, Sparkles } from 'lucide-react';
+import { Users, Copy, Check, Play, ShieldAlert, Cpu, Sparkles, Bot, Plus, Minus } from 'lucide-react';
 
 export const LobbyView: React.FC = () => {
-  const { gameState, createRoom, joinRoom, toggleReady, startGame } = useSocket();
+  const { gameState, createRoom, joinRoom, toggleReady, startGame, fillWithBots, addBot, removeBot } = useSocket();
   const [nickname, setNickname] = useState('');
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [copied, setCopied] = useState(false);
@@ -161,6 +161,11 @@ export const LobbyView: React.FC = () => {
                           HOST
                         </span>
                       )}
+                      {p.isBot && (
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono border border-purple-500/30 flex items-center gap-1">
+                          <Bot className="w-2.5 h-2.5" /> BOT
+                        </span>
+                      )}
                       {isMe && (
                         <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono border border-cyan-500/30">
                           TÚ
@@ -179,6 +184,42 @@ export const LobbyView: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* Panel de Control de Bots (Solo Host) */}
+      {isHost && (
+        <div className="glass-panel p-4 rounded-2xl border border-purple-500/30 bg-purple-950/20 mb-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs font-mono text-purple-200">
+            <Bot className="w-4 h-4 text-purple-400" />
+            <span>Bots Heurísticos (Sin IA externa):</span>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={fillWithBots}
+              disabled={players.length >= 8}
+              className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-purple-600/40 hover:bg-purple-600/60 text-purple-200 border border-purple-500/40 text-xs font-mono font-semibold transition flex items-center justify-center gap-1.5 disabled:opacity-40"
+            >
+              <Bot className="w-3.5 h-3.5" />
+              Rellenar sala con Bots (8)
+            </button>
+            <button
+              onClick={addBot}
+              disabled={players.length >= 14}
+              className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-white/10 text-xs font-mono transition flex items-center gap-1 disabled:opacity-40"
+              title="Agregar 1 Bot"
+            >
+              <Plus className="w-3.5 h-3.5" /> Bot
+            </button>
+            <button
+              onClick={removeBot}
+              disabled={!players.some(p => p.isBot)}
+              className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-white/10 text-xs font-mono transition flex items-center gap-1 disabled:opacity-40"
+              title="Quitar 1 Bot"
+            >
+              <Minus className="w-3.5 h-3.5" /> Bot
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Acciones del Lobby */}
       <div className="flex flex-col sm:flex-row gap-3">

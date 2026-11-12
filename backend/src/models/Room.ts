@@ -10,19 +10,22 @@ import {
   DirectMessage,
   PlayerNightAction,
   ROLES,
-  DailyTrendId
+  DailyTrendId,
+  BotPersonality
 } from '@operacion-filtracion/shared';
 import { PHASE_DURATIONS, RULES } from '../config/gameRules';
 import { distributeRoles } from '../engine/RoleDistributor';
 import { resolveNightOperations } from '../engine/NightResolver';
 import { sanitizeGameState } from '../engine/AntiCheat';
 import { selectDailyTrend } from '../engine/TrendsManager';
+import { BotEngine } from '../engine/BotEngine';
 
 type GameServer = Server<ClientToServerEvents, ServerToClientEvents>;
 
 export class Room {
   public code: string;
   public state: GameState;
+  public botEngine: BotEngine;
   private io: GameServer;
   private timerInterval?: NodeJS.Timeout;
   private defenseTimeout?: NodeJS.Timeout;
@@ -30,6 +33,7 @@ export class Room {
   constructor(code: string, io: GameServer) {
     this.code = code;
     this.io = io;
+    this.botEngine = new BotEngine(this);
     this.state = {
       roomCode: code,
       phase: 'LOBBY',
@@ -107,6 +111,77 @@ export class Room {
   }
 
   // ==========================================
+  // Gestión de Bots (100% Algorítmicos)
+  // ==========================================
+
+  public addBot(personality?: BotPersonality): PlayerState | null {
+    if (this.state.phase !== 'LOBBY') return null;
+    const currentCount = Object.keys(this.state.players).length;
+    if (currentCount >= RULES.MAX_PLAYERS) return null;
+
+    const BOT_NAMES = [
+      'CipherBot', 'Nexus_AI', 'GhostByte', 'VectorX',
+      'Proxy_9', 'Sentinel_01', 'Krypton', 'DaemonX',
+      'RootAccess', 'ZeroBit', 'Synapse', 'Glitch_26'
+    ];
+    const BOT_PERSONALITIES: BotPersonality[] = ['agresivo', 'analitico', 'callado', 'caotico'];
+
+    const botId = `bot_${Math.random().toString(36).substring(2, 9)}`;
+    const usedNames = new Set(Object.values(this.state.players).map(p => p.nickname));
+    const availableNames = BOT_NAMES.filter(n => !usedNames.has(n));
+    const nickname = availableNames.length > 0
+      ? availableNames[Math.floor(Math.random() * availableNames.length)]
+      : `Agente_${Math.floor(Math.random() * 900 + 100)}`;
+
+    const chosenPersonality = personality || BOT_PERSONALITIES[Math.floor(Math.random() * BOT_PERSONALITIES.length)];
+
+    const botPlayer: PlayerState = {
+      id: botId,
+      nickname,
+      avatarSeed: Math.random().toString(36).substring(7),
+      isHost: false,
+      isReady: true,
+      isAlive: true,
+      role: 'SMART_CAM_CITIZEN',
+      faction: 'CITIZEN',
+      isBot: true,
+      personality: chosenPersonality,
+      isSilenced: false,
+      isProtected: false,
+      isDDoSedThisNight: false,
+      visitedBy: [],
+      dmsRemainingToday: RULES.MAX_DMS_PER_DAY,
+      remainingAbilityUses: 0,
+      ceoInvestigatedBefore: false,
+      hasNominated: false
+    };
+
+    this.state.players[botId] = botPlayer;
+    this.syncAll();
+    return botPlayer;
+  }
+
+  public removeBot(): boolean {
+    if (this.state.phase !== 'LOBBY') return false;
+    const botEntries = Object.entries(this.state.players).filter(([_, p]) => p.isBot);
+    if (botEntries.length === 0) return false;
+
+    const [lastBotId] = botEntries[botEntries.length - 1];
+    delete this.state.players[lastBotId];
+    this.syncAll();
+    return true;
+  }
+
+  public fillWithBots(targetCount = 8): void {
+    if (this.state.phase !== 'LOBBY') return;
+    const currentCount = Object.keys(this.state.players).length;
+    const needed = Math.min(RULES.MAX_PLAYERS, targetCount) - currentCount;
+    for (let i = 0; i < needed; i++) {
+      this.addBot();
+    }
+  }
+
+  // ==========================================
   // Ciclo de Vida del Juego (State Machine)
   // ==========================================
 
@@ -140,12 +215,14 @@ export class Room {
     }
 
     this.state.roundNumber = 1;
+    this.botEngine.initMatch();
     this.transitionToPhase('ROLE_ASSIGNMENT');
     return true;
   }
 
   private transitionToPhase(newPhase: GamePhase): void {
     this.stopTimer();
+    this.botEngine.clearAllTimers();
     this.state.phase = newPhase;
 
     let duration = 0;
@@ -190,6 +267,17 @@ export class Room {
 
     this.syncAll();
     this.startTimer(() => this.onPhaseTimerExpired());
+
+    // Disparar heurísticas y acciones de bots según la nueva fase
+    if (newPhase === 'NIGHT_OPERATIONS') {
+      this.botEngine.scheduleBotNightActions();
+    } else if (newPhase === 'DAY_CHAT_AND_DM') {
+      this.botEngine.scheduleBotDayChat();
+    } else if (newPhase === 'NOMINATION_AND_DEFENSE') {
+      this.botEngine.scheduleBotNominations();
+    } else if (newPhase === 'VERDICT_VOTE') {
+      this.botEngine.scheduleBotVerdicts();
+    }
   }
 
   private onPhaseTimerExpired(): void {
@@ -265,7 +353,13 @@ export class Room {
 
     // Enviar reportes privados de inteligencia a los agentes
     Object.entries(res.intelReports).forEach(([playerId, report]) => {
-      this.io.to(playerId).emit('night:intel_result', report);
+      const p = this.state.players[playerId];
+      if (p?.isBot) {
+        const myAction = this.state.pendingNightActions[playerId];
+        this.botEngine.recordNightIntel(playerId, report, myAction?.targetId);
+      } else {
+        this.io.to(playerId).emit('night:intel_result', report);
+      }
     });
 
     this.syncAll();
@@ -305,6 +399,7 @@ export class Room {
 
     this.state.nominations[voterId] = suspectId;
     voter.hasNominated = true;
+    this.botEngine.onPlayerNominated(voterId, suspectId);
 
     // Calcular votos acumulados
     const tally: Record<string, number> = {};
@@ -325,6 +420,9 @@ export class Room {
     ) {
       this.state.nominatedPlayerId = suspectId;
       this.sendSystemAlert(`📢 ${suspect.nickname} ha alcanzado las acusaciones necesarias y sube al estrado.`, 'alert');
+      if (suspect.isBot) {
+        this.botEngine.triggerBotDefense(suspect.id);
+      }
     }
 
     this.syncAll();
@@ -367,6 +465,7 @@ export class Room {
 
     if (guiltyCount > innocentCount) {
       accused.isAlive = false;
+      this.botEngine.onPlayerExecuted(accused);
       this.sendSystemAlert(`💥 El estrado dictó CULPABLE. ${accused.nickname} ha sido eliminado. Su rol era: ${ROLES[accused.role].name}.`, 'critical');
 
       // CONDICIÓN DE VICTORIA DEL TROLL
@@ -452,10 +551,12 @@ export class Room {
       actorId: playerId
     };
 
-    this.io.to(playerId).emit('night:action_ack', {
-      success: true,
-      message: 'Comando nocturno encriptado y programado para el amanecer.'
-    });
+    if (!player.isBot) {
+      this.io.to(playerId).emit('night:action_ack', {
+        success: true,
+        message: 'Comando nocturno encriptado y programado para el amanecer.'
+      });
+    }
 
     this.syncAll();
   }
@@ -505,8 +606,30 @@ export class Room {
   // Sincronización y Timers
   // ==========================================
 
+  public broadcastChatMessage(channel: 'PUBLIC' | 'MAFIA' | 'SPECTATOR', sender: PlayerState, text: string): void {
+    const message: ChatMessage = {
+      id: Math.random().toString(36).substring(7),
+      senderId: sender.id,
+      senderNickname: sender.nickname,
+      channel,
+      text,
+      timestamp: Date.now()
+    };
+
+    if (channel === 'PUBLIC') {
+      this.io.to(this.code).emit('chat:message', message);
+    } else if (channel === 'MAFIA') {
+      this.recordMafiaNightMessage(text);
+      Object.values(this.state.players)
+        .filter(p => p.faction === 'CARTEL' && !p.isBot)
+        .forEach(m => this.io.to(m.id).emit('chat:message', message));
+    }
+  }
+
   public syncAll(): void {
     Object.keys(this.state.players).forEach(socketId => {
+      const player = this.state.players[socketId];
+      if (player?.isBot) return; // Omitir emisión a sockets de bots inexistentes
       const sanitized = sanitizeGameState(this.state, socketId);
       this.io.to(socketId).emit('game:state_sync', sanitized);
     });

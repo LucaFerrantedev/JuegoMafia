@@ -106,6 +106,51 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
     }
   });
 
+  socket.on('lobby:fill_bots', () => {
+    const code = socketToRoom.get(socket.id);
+    if (!code) return;
+    const room = rooms.get(code);
+    if (!room) return;
+
+    const player = room.state.players[socket.id];
+    if (!player || !player.isHost) {
+      socket.emit('error:notification', { message: 'Solo el anfitrión puede agregar bots.' });
+      return;
+    }
+
+    room.fillWithBots(8);
+  });
+
+  socket.on('lobby:add_bot', () => {
+    const code = socketToRoom.get(socket.id);
+    if (!code) return;
+    const room = rooms.get(code);
+    if (!room) return;
+
+    const player = room.state.players[socket.id];
+    if (!player || !player.isHost) {
+      socket.emit('error:notification', { message: 'Solo el anfitrión puede agregar bots.' });
+      return;
+    }
+
+    room.addBot();
+  });
+
+  socket.on('lobby:remove_bot', () => {
+    const code = socketToRoom.get(socket.id);
+    if (!code) return;
+    const room = rooms.get(code);
+    if (!room) return;
+
+    const player = room.state.players[socket.id];
+    if (!player || !player.isHost) {
+      socket.emit('error:notification', { message: 'Solo el anfitrión puede quitar bots.' });
+      return;
+    }
+
+    room.removeBot();
+  });
+
   // ==========================================
   // Chat & Mensajería Handlers
   // ==========================================

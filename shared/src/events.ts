@@ -27,6 +27,9 @@ export interface ClientToServerEvents {
   'lobby:join': (payload: { roomCode: string; nickname: string; avatarSeed?: string }) => void;
   'lobby:toggle_ready': () => void;
   'lobby:start_game': () => void;
+  'lobby:fill_bots': () => void;
+  'lobby:add_bot': () => void;
+  'lobby:remove_bot': () => void;
 
   // Chats y Mensajería
   'chat:send_message': (payload: { channel: 'PUBLIC' | 'MAFIA' | 'SPECTATOR'; text: string }) => void;

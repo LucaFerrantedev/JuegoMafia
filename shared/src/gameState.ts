@@ -31,6 +31,8 @@ export interface PlayerNightAction {
   };
 }
 
+export type BotPersonality = 'agresivo' | 'analitico' | 'callado' | 'caotico';
+
 export interface PlayerState {
   id: string; // Socket ID o identificador de sesión
   nickname: string;
@@ -40,6 +42,8 @@ export interface PlayerState {
   isAlive: boolean;
   role: RoleId;
   faction: Faction;
+  isBot?: boolean;
+  personality?: BotPersonality;
 
   // Estados temporales de ronda
   isSilenced: boolean;          // Silenciado por el hacker para el debate diurno
@@ -72,6 +76,8 @@ export interface PublicPlayerInfo {
   isSilenced: boolean;
   hasNominated: boolean;
   hasVotedVerdict: boolean;
+  isBot?: boolean;
+  personality?: BotPersonality;
   revealedRole?: RoleId; // Visible solo si está muerto o terminó el juego
   revealedFaction?: Faction;
 }
