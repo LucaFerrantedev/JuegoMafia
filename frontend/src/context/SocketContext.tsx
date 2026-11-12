@@ -46,7 +46,7 @@ interface SocketContextValue {
 
 const SocketContext = createContext<SocketContextValue | null>(null);
 
-const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000';
+const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.PROD ? undefined : 'http://localhost:4000');
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [socket, setSocket] = useState<TypedSocket | null>(null);

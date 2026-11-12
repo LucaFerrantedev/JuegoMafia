@@ -1,5 +1,7 @@
 import express from 'express';
 import http from 'http';
+import path from 'path';
+import fs from 'fs';
 import { Server, Socket } from 'socket.io';
 import cors from 'cors';
 import {
@@ -243,6 +245,16 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
     console.log(`[Socket] Desconectado: ${socket.id}`);
   });
 });
+
+// Servir frontend compilado en producción (Todo-en-uno para Render)
+const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+  console.log(`📦 Sirviendo interfaz web frontend desde: ${frontendDistPath}`);
+}
 
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
