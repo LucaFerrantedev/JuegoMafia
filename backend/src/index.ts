@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import http from 'http';
 import path from 'path';
 import fs from 'fs';
@@ -250,7 +250,7 @@ io.on('connection', (socket: Socket<ClientToServerEvents, ServerToClientEvents>)
 const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
 if (fs.existsSync(frontendDistPath)) {
   app.use(express.static(frontendDistPath));
-  app.get('*', (_req, res) => {
+  app.get('*', (_req: Request, res: Response) => {
     res.sendFile(path.join(frontendDistPath, 'index.html'));
   });
   console.log(`📦 Sirviendo interfaz web frontend desde: ${frontendDistPath}`);
